@@ -3,10 +3,10 @@ package com.ms.albright.recipe_bank.service.impl;
 import com.ms.albright.recipe_bank.AppConstants;
 import com.ms.albright.recipe_bank.domain.RecipeDTO;
 import com.ms.albright.recipe_bank.service.RecipeBankService;
+import com.ms.albright.recipe_bank.util.AwsAccessUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.awscore.util.SignerOverrideUtils;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 
@@ -27,16 +27,8 @@ public class RecipeBankServiceImpl implements RecipeBankService {
 /*
     private final ConcurrentHashMap<String, List<String>> recipeNamesCache = new ConcurrentHashMap<>();
 */
-
-    private final S3Client s3Client;
-
     @Autowired
-    public RecipeBankServiceImpl(S3Client s3Client) {
-        this.s3Client = s3Client;
-    }
-
-    @Value("${bucket.name}")
-    private String bucketName;
+    AwsAccessUtil awsAccessUtil;
 
     @Value("${bucket.recipe.key}")
     private String bucketPrefix;
@@ -63,18 +55,11 @@ public class RecipeBankServiceImpl implements RecipeBankService {
         try {
             InputStream inputStream = new ByteArrayInputStream(recipeContent.getBytes(StandardCharsets.UTF_8));
 
-            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm");
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
             String formattedDate = dateFormat.format(new Date());
-            String fullBucketKey = bucketPrefix + recipeName + "|" + formattedDate + AppConstants.TEXT_EXTENSION;
 
-//            String fullBucketKey = bucketPrefix + recipeName;
-            PutObjectRequest request = PutObjectRequest.builder()
-                    .bucket(bucketName)
-                    .key(fullBucketKey)
-                    .build();
-
-            // Upload the file to S3 using the InputStream directly
-            s3Client.putObject(request, software.amazon.awssdk.core.sync.RequestBody.fromInputStream(inputStream, recipeContent.length()));
+            String fullBucketKey = recipeName + "|" + formattedDate + AppConstants.TEXT_EXTENSION;
+            awsAccessUtil.s3Upload(fullBucketKey, recipeContent, inputStream);
 
             // After successful upload, create the RecipeDTO and cache it
             RecipeDTO recipeDTO = new RecipeDTO();
@@ -100,21 +85,8 @@ public class RecipeBankServiceImpl implements RecipeBankService {
     }
 
     private int getObjectCountInS3Bucket() {
-        ListObjectsV2Request request = ListObjectsV2Request.builder()
-                .bucket(bucketName)
-                .prefix(bucketPrefix)
-                .build();
-
-        ListObjectsV2Response response = s3Client.listObjectsV2(request);
+        ListObjectsV2Response response = awsAccessUtil.s3ListObjects();
         List<S3Object> filteredObjList = getFilteredS3Objects(response);
-
-        System.out.println("In /getObjectCountInS3Bucket");
-
-        // TODO: DEBUG
-//        filteredObjList.forEach(s3Object -> {
-//            System.out.println(s3Object.key());
-//        });
-
         return filteredObjList.size();
     }
 
@@ -126,20 +98,13 @@ public class RecipeBankServiceImpl implements RecipeBankService {
     }
 
     public void getAllRecipes() {
-        System.out.println("In /getAllRecipes");
-        ListObjectsV2Request request = ListObjectsV2Request.builder()
-                .bucket(bucketName)
-                .prefix(bucketPrefix) // Only list objects in this folder
-                .build();
-
-        ListObjectsV2Response response = s3Client.listObjectsV2(request);
+        ListObjectsV2Response response = awsAccessUtil.s3ListObjects();
         List<S3Object> filteredObjList = getFilteredS3Objects(response);
 
         recipeCache.clear();
-
         filteredObjList.forEach(s3Object -> {
             String recipeName = s3Object.key().replace(bucketPrefix, "").replace(AppConstants.TEXT_EXTENSION, "");
-            String recipeContent = getRecipeContentFromS3(s3Object.key());
+            String recipeContent = awsAccessUtil.s3ObjectContent(s3Object.key());
 
             // Cache the recipe
             RecipeDTO recipeDTO = new RecipeDTO();
@@ -149,15 +114,5 @@ public class RecipeBankServiceImpl implements RecipeBankService {
         });
     }
 
-    // update to test git connection
-
-    private String getRecipeContentFromS3(String bucketKey) {
-        GetObjectRequest request = GetObjectRequest.builder()
-                .bucket(bucketName)
-                .key(bucketKey)
-                .build();
-
-        return s3Client.getObjectAsBytes(request).asUtf8String();
-    }
 
 }
