@@ -149,6 +149,8 @@ public class RecipeBankServiceImpl implements RecipeBankService {
         });
     }
 
+    // update to test git connection
+
     private String getRecipeContentFromS3(String bucketKey) {
         GetObjectRequest request = GetObjectRequest.builder()
                 .bucket(bucketName)
