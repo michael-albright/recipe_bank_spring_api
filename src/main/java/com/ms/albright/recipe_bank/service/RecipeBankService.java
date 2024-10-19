@@ -1,15 +1,16 @@
 package com.ms.albright.recipe_bank.service;
 
-import com.ms.albright.recipe_bank.domain.RecipeDTO;
+import com.ms.albright.recipe_bank.domain.Recipe;
 
 import java.util.List;
+import java.util.Map;
 
 public interface RecipeBankService {
-    List<String> getRecipeList();
+    List<Recipe> getRecipeList();
 
-    String saveRecipe(String recipeName, String recipeContent) throws Exception;
+    String saveRecipe(String recipeName, String recipeCreator, String recipeContent) throws Exception;
 
-    RecipeDTO getRecipe(String recipeName);
+    Recipe getRecipe(String recipeName, String creationDate);
 
     List<String> searchRecipes(String recipeName);
 }

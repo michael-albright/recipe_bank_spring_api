@@ -1,6 +1,6 @@
 package com.ms.albright.recipe_bank.controller;
 
-import com.ms.albright.recipe_bank.domain.RecipeDTO;
+import com.ms.albright.recipe_bank.domain.Recipe;
 import com.ms.albright.recipe_bank.service.RecipeBankService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,7 +21,7 @@ public class RecipeBankController {
     RecipeBankService recipeBankService;
 
     @GetMapping("/getRecipeList")
-    public ResponseEntity<List<String>> getRecipeList() throws Exception {
+    public ResponseEntity<List<Recipe>> getRecipeList() throws Exception {
         try {
             return new ResponseEntity<>(recipeBankService.getRecipeList(), HttpStatusCode.valueOf(200));
         } catch(Exception e) {
@@ -41,9 +41,9 @@ public class RecipeBankController {
     }
 
     @GetMapping("/getRecipe")
-    public ResponseEntity<RecipeDTO> getRecipe(@RequestParam String recipeName) throws Exception {
+    public ResponseEntity<Recipe> getRecipe(@RequestParam String recipeName, @RequestParam String creationDate) throws Exception {
         try {
-            return new ResponseEntity<>(recipeBankService.getRecipe(recipeName), HttpStatusCode.valueOf(200));
+            return new ResponseEntity<>(recipeBankService.getRecipe(recipeName, creationDate), HttpStatusCode.valueOf(200));
         } catch(Exception e) {
             System.out.println("Failure in /getRecipe");
             throw new Exception();
@@ -52,9 +52,9 @@ public class RecipeBankController {
 
     @PostMapping("/saveRecipe")
     @Operation(summary = "Upload a new recipe to s3", description = "Uploads a new recipe to the Recipe Bank")
-    public ResponseEntity<String> saveRecipe(@RequestBody RecipeDTO recipeDTO) throws Exception {
+    public ResponseEntity<String> saveRecipe(@RequestBody Recipe recipe) throws Exception {
         try {
-            recipeBankService.saveRecipe(recipeDTO.getRecipeName(), recipeDTO.getRecipeContent());
+            recipeBankService.saveRecipe(recipe.getRecipeName(), recipe.getRecipeCreator(), recipe.getRecipeContent());
             return ResponseEntity.ok("Recipe saved successfully!");
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Failed to save recipe: " + e.getMessage());
