@@ -59,10 +59,10 @@ public class AwsAccessUtil {
 
 //  throw new RuntimeException("Failed to access object list in s3 at '" + bucketName + "/" + bucketPrefix + "'");
 
-    public String s3getObjectContent(String bucketKey) {
+    public String s3getObjectContent(String objectKey) {
         GetObjectRequest request = GetObjectRequest.builder()
                 .bucket(bucketName)
-                .key(bucketKey)
+                .key(bucketPrefix + objectKey)
                 .build();
 
         return s3Client.getObjectAsBytes(request).asUtf8String();

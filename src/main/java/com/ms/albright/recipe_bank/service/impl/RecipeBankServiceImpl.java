@@ -80,14 +80,21 @@ public class RecipeBankServiceImpl implements RecipeBankService {
 
     @Override
     public Recipe getRecipe(String recipeName, String creationDate) {
-        String recipeAccessKey = recipeName + "#" + creationDate;
-        if (!recipeCache.isEmpty() && recipeCache.get(recipeAccessKey) != null) {
-            if (recipeCache.get(recipeAccessKey).getRecipeContent() == null) {
+        //TODO: Update to use a hash instead of a post, includes deleting all recipes in s3 and ensuring saveRecipe uses "#"
+        String recipeAccessKey = recipeName + "|" + creationDate;
+
+        String newAccessKey = recipeName + "#" + creationDate;
+        if(recipeCache.isEmpty()) checkAndUpdateCache();
+        if (recipeCache.get(newAccessKey) != null) {
+            if (recipeCache.get(newAccessKey).getRecipeContent() == null) {
                 String recipeContent = awsAccessUtil.s3getObjectContent(recipeAccessKey + AppConstants.TEXT_EXTENSION);
-                recipeCache.get(recipeAccessKey).setRecipeContent(recipeContent);
+                recipeCache.get(newAccessKey).setRecipeContent(recipeContent);
             }
+        } else {
+            System.out.println("Recipe does not exist.");
+            return null;
         }
-        return recipeCache.get(recipeAccessKey);
+        return recipeCache.get(newAccessKey);
     }
 
     @Override
@@ -108,6 +115,10 @@ public class RecipeBankServiceImpl implements RecipeBankService {
             List<Map<String, AttributeValue>> allItems = awsAccessUtil.dynamoGetAllItems();
             for (Map<String, AttributeValue> item : allItems) {
                 Map<String, Object> plainMap = DynamoDbUtil.convertItem(item);
+                // Set recipeContent to null, recipeContent will be populated upon request
+                plainMap.put("recipeContent", null);
+                // remove partition key
+                plainMap.remove("recipeName#creationDate");
                 String recipeAccessKey = plainMap.get("recipeName") + "#" + plainMap.get("creationDate");
                 if (recipeCache.get(recipeAccessKey) == null) {
                     Recipe recipe = objectMapper.convertValue(plainMap, Recipe.class);
@@ -123,33 +134,3 @@ public class RecipeBankServiceImpl implements RecipeBankService {
         return recipes.size();
     }
 }
-
-//    public void updateContentCache(String compositeKey, String recipeName, String recipeContent) {
-//        Map<String, String> recipeContentData = new HashMap<>();
-//        recipeContentData.put("recipeName", recipeName);
-//        recipeContentData.put("recipeContent", recipeContent);
-//        recipeContentCache.put(compositeKey, recipeContentData);
-//    }
-
-    // Filter out folder-like keys, such as "recipe-bank/upload/recipes/"
-//    public List<S3Object> getFilteredS3Objects(ListObjectsV2Response response) {
-//        return response.contents().stream()
-//                .filter(s3Object -> !s3Object.key().equals("recipe-bank/upload/recipes/"))
-//                .collect(Collectors.toList());
-//    }
-
-//    public void getAllRecipes() {
-//        ListObjectsV2Response response = awsAccessUtil.s3ListObjects();
-//        List<S3Object> filteredObjList = getFilteredS3Objects(response);
-//
-//        recipeContentCache.clear();
-//        filteredObjList.forEach(s3Object -> {
-//            String recipeName = s3Object.key().replace(bucketPrefix, "").replace(AppConstants.TEXT_EXTENSION, "");
-//            String recipeContent = awsAccessUtil.s3getObjectContent(s3Object.key());
-//
-//            // Cache the recipe
-//            Recipe recipe = new Recipe(recipeName, recipeCreator, creationDate, recipeContent);
-//
-//            recipeContentCache.put(recipeName, recipe);
-//        });
-//    }
