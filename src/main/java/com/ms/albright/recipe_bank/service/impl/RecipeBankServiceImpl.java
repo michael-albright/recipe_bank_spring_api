@@ -21,12 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class RecipeBankServiceImpl implements RecipeBankService {
 
-    //    private final ConcurrentHashMap<String, Map<String, String>> recipeContentCache = new ConcurrentHashMap<>();
-//    private final ConcurrentHashMap<String, Map<String, Object>> recipeMetaDataCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Recipe> recipeCache = new ConcurrentHashMap<>();
-
-    @Autowired
-    AwsAccessUtil awsAccessUtil;
 
     @Value("${bucket.recipe.key}")
     private String bucketPrefix;
@@ -47,12 +42,12 @@ public class RecipeBankServiceImpl implements RecipeBankService {
             item.put("creationDate", AttributeValue.builder().s(creationDate).build());
             item.put("recipeCreator", AttributeValue.builder().s(recipeCreator).build());
 
-            awsAccessUtil.dynamoSaveItem(item);
+            AwsAccessUtil.dynamoSaveItem(item);
 
             // s3: save recipeContent as .txt file, name will be recipeName#creationDate
             InputStream inputStream = new ByteArrayInputStream(recipeContent.getBytes(StandardCharsets.UTF_8));
             String fullBucketKey = recipeName + "#" + creationDate + AppConstants.TEXT_EXTENSION;
-            awsAccessUtil.s3Upload(fullBucketKey, recipeContent, inputStream);
+            AwsAccessUtil.s3Upload(fullBucketKey, recipeContent, inputStream);
 
             Recipe recipe = new Recipe(recipeName, recipeCreator, creationDate, recipeContent);
 
@@ -79,6 +74,12 @@ public class RecipeBankServiceImpl implements RecipeBankService {
     }
 
     @Override
+    public List<String> searchRecipes(String userInput) {
+        return recipeCache.keySet().stream()
+                .filter(key -> key.toLowerCase().contains(userInput.toLowerCase())).toList();
+    }
+
+    @Override
     public Recipe getRecipe(String recipeName, String creationDate) {
         //TODO: Update to use a hash instead of a post, includes deleting all recipes in s3 and ensuring saveRecipe uses "#"
         String recipeAccessKey = recipeName + "|" + creationDate;
@@ -87,7 +88,7 @@ public class RecipeBankServiceImpl implements RecipeBankService {
         if(recipeCache.isEmpty()) checkAndUpdateCache();
         if (recipeCache.get(newAccessKey) != null) {
             if (recipeCache.get(newAccessKey).getRecipeContent() == null) {
-                String recipeContent = awsAccessUtil.s3getObjectContent(recipeAccessKey + AppConstants.TEXT_EXTENSION);
+                String recipeContent = AwsAccessUtil.s3getObjectContent(recipeAccessKey + AppConstants.TEXT_EXTENSION);
                 recipeCache.get(newAccessKey).setRecipeContent(recipeContent);
             }
         } else {
@@ -95,12 +96,6 @@ public class RecipeBankServiceImpl implements RecipeBankService {
             return null;
         }
         return recipeCache.get(newAccessKey);
-    }
-
-    @Override
-    public List<String> searchRecipes(String userInput) {
-        return recipeCache.keySet().stream()
-                .filter(key -> key.toLowerCase().contains(userInput.toLowerCase())).toList();
     }
 
     /* Local Methods */
@@ -112,7 +107,7 @@ public class RecipeBankServiceImpl implements RecipeBankService {
         int objectCount = getRecipeCount();
         if (recipeCache.size() != objectCount) {
             ObjectMapper objectMapper = new ObjectMapper();
-            List<Map<String, AttributeValue>> allItems = awsAccessUtil.dynamoGetAllItems();
+            List<Map<String, AttributeValue>> allItems = AwsAccessUtil.dynamoGetAllItems();
             for (Map<String, AttributeValue> item : allItems) {
                 Map<String, Object> plainMap = DynamoDbUtil.convertItem(item);
                 // Set recipeContent to null, recipeContent will be populated upon request
@@ -128,9 +123,8 @@ public class RecipeBankServiceImpl implements RecipeBankService {
         }
     }
 
-    //TODO: Pull tableName from configuration data (env variable)
     private int getRecipeCount() {
-        List<Map<String, AttributeValue>> recipes = awsAccessUtil.dynamoGetAllItems();
+        List<Map<String, AttributeValue>> recipes = AwsAccessUtil.dynamoGetAllItems();
         return recipes.size();
     }
 }

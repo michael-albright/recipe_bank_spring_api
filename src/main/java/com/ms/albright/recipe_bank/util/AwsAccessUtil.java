@@ -21,24 +21,21 @@ import java.util.Map;
 public class AwsAccessUtil {
 
     @Autowired
-    private S3Client s3Client;
+    private static S3Client s3Client;
 
     @Autowired
-    private DynamoDbClient dynamoDbClient;
-
-    @Autowired
-    DynamoDbUtil dynamoDbUtil;
+    private static DynamoDbClient dynamoDbClient;
 
     @Value("${bucket.name}")
-    private String bucketName;
+    private static String bucketName;
 
     @Value("${bucket.recipe.key}")
-    private String bucketPrefix;
+    private static String bucketPrefix;
 
-    private final String dynamoDbTableName = "Recipes";
+    private static final String dynamoDbTableName = "Recipes";
 
 
-    public void s3Upload(String objectKey, String objectContent, InputStream inputStream) {
+    public static void s3Upload(String objectKey, String objectContent, InputStream inputStream) {
         PutObjectRequest request = PutObjectRequest.builder()
                 .bucket(bucketName)
                 .key(bucketPrefix + objectKey)
@@ -46,20 +43,8 @@ public class AwsAccessUtil {
             // Upload the file to S3 using the InputStream directly
             s3Client.putObject(request, software.amazon.awssdk.core.sync.RequestBody.fromInputStream(inputStream, objectContent.length()));
     }
-//  throw new RuntimeException("Failed to upload '" + recipeKey + "' to '" + bucketName + "/" + bucketPrefix + recipeKey);
 
-
-    public ListObjectsV2Response s3ListObjects() {
-        ListObjectsV2Request request = ListObjectsV2Request.builder()
-                .bucket(bucketName)
-                .prefix(bucketPrefix)
-                .build();
-        return s3Client.listObjectsV2(request);
-    }
-
-//  throw new RuntimeException("Failed to access object list in s3 at '" + bucketName + "/" + bucketPrefix + "'");
-
-    public String s3getObjectContent(String objectKey) {
+    public static String s3getObjectContent(String objectKey) {
         GetObjectRequest request = GetObjectRequest.builder()
                 .bucket(bucketName)
                 .key(bucketPrefix + objectKey)
@@ -69,7 +54,7 @@ public class AwsAccessUtil {
     }
 
     // Dynamo Db Access
-    public void dynamoSaveItem(Map<String, AttributeValue> item) {
+    public static void dynamoSaveItem(Map<String, AttributeValue> item) {
         PutItemRequest request = PutItemRequest.builder()
                 .tableName(dynamoDbTableName)
                 .item(item)
@@ -79,7 +64,7 @@ public class AwsAccessUtil {
         dynamoDbClient.putItem(request);
     }
 
-    public List<Map<String, AttributeValue>> dynamoGetAllItems() {
+    public static List<Map<String, AttributeValue>> dynamoGetAllItems() {
         ScanRequest scanRequest = ScanRequest.builder()
                 .tableName(dynamoDbTableName)
                 .build();
