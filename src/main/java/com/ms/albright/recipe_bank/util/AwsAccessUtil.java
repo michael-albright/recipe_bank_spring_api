@@ -9,8 +9,6 @@ import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
-import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.InputStream;
@@ -21,21 +19,21 @@ import java.util.Map;
 public class AwsAccessUtil {
 
     @Autowired
-    private static S3Client s3Client;
+    private S3Client s3Client;
 
     @Autowired
-    private static DynamoDbClient dynamoDbClient;
+    private DynamoDbClient dynamoDbClient;
 
     @Value("${bucket.name}")
-    private static String bucketName;
+    private String bucketName;
 
     @Value("${bucket.recipe.key}")
-    private static String bucketPrefix;
+    private String bucketPrefix;
 
-    private static final String dynamoDbTableName = "Recipes";
+    private final String dynamoDbTableName = "Recipes";
 
 
-    public static void s3Upload(String objectKey, String objectContent, InputStream inputStream) {
+    public void s3Upload(String objectKey, String objectContent, InputStream inputStream) {
         PutObjectRequest request = PutObjectRequest.builder()
                 .bucket(bucketName)
                 .key(bucketPrefix + objectKey)
@@ -44,7 +42,7 @@ public class AwsAccessUtil {
             s3Client.putObject(request, software.amazon.awssdk.core.sync.RequestBody.fromInputStream(inputStream, objectContent.length()));
     }
 
-    public static String s3getObjectContent(String objectKey) {
+    public String s3getObjectContent(String objectKey) {
         GetObjectRequest request = GetObjectRequest.builder()
                 .bucket(bucketName)
                 .key(bucketPrefix + objectKey)
@@ -54,7 +52,7 @@ public class AwsAccessUtil {
     }
 
     // Dynamo Db Access
-    public static void dynamoSaveItem(Map<String, AttributeValue> item) {
+    public void dynamoSaveItem(Map<String, AttributeValue> item) {
         PutItemRequest request = PutItemRequest.builder()
                 .tableName(dynamoDbTableName)
                 .item(item)
@@ -64,7 +62,7 @@ public class AwsAccessUtil {
         dynamoDbClient.putItem(request);
     }
 
-    public static List<Map<String, AttributeValue>> dynamoGetAllItems() {
+    public List<Map<String, AttributeValue>> dynamoGetAllItems() {
         ScanRequest scanRequest = ScanRequest.builder()
                 .tableName(dynamoDbTableName)
                 .build();
