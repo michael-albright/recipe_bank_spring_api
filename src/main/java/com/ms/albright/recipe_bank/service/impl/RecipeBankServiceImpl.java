@@ -3,6 +3,7 @@ package com.ms.albright.recipe_bank.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ms.albright.recipe_bank.AppConstants;
 import com.ms.albright.recipe_bank.domain.Recipe;
+import com.ms.albright.recipe_bank.exception.RecipeNotFoundException;
 import com.ms.albright.recipe_bank.service.RecipeBankService;
 import com.ms.albright.recipe_bank.util.AwsAccessUtil;
 import com.ms.albright.recipe_bank.util.DynamoDbUtil;
@@ -54,15 +55,14 @@ public class RecipeBankServiceImpl implements RecipeBankService {
 
             Recipe recipe = new Recipe(recipeName, recipeCreator, creationDate, recipeContent);
 
-            // update cache
             updateRecipeCache(compositeKey, recipe);
 
             // TODO: Implement logging
             System.out.println("File uploaded to S3: " + recipeName);
             return "File uploaded to S3: " + recipeName;
         } catch (Exception e) {
-            // Handle any errors during upload
-            return "Error uploading recipe to S3: " + e.getMessage();
+            e.printStackTrace();
+            throw e;
         }
     }
 
@@ -80,21 +80,19 @@ public class RecipeBankServiceImpl implements RecipeBankService {
 
     @Override
     public Recipe getRecipe(String recipeName, String creationDate) {
-        //TODO: Update to use a hash instead of a post, includes deleting all recipes in s3 and ensuring saveRecipe uses "#"
-//        String recipeAccessKey = recipeName + "|" + creationDate;
 
-        String newAccessKey = recipeName + "#" + creationDate;
+        String s3AccessKey = recipeName + "#" + creationDate;
         if(recipeCache.isEmpty()) checkAndUpdateCache();
-        if (recipeCache.get(newAccessKey) != null) {
-            if (recipeCache.get(newAccessKey).getRecipeContent() == null) {
-                String recipeContent = awsAccessUtil.s3getObjectContent(newAccessKey + AppConstants.TEXT_EXTENSION);
-                recipeCache.get(newAccessKey).setRecipeContent(recipeContent);
+        if (recipeCache.get(s3AccessKey) != null) {
+            if (recipeCache.get(s3AccessKey).getRecipeContent() == null) {
+                String recipeContent = awsAccessUtil.s3getObjectContent(s3AccessKey + AppConstants.TEXT_EXTENSION);
+                recipeCache.get(s3AccessKey).setRecipeContent(recipeContent);
             }
         } else {
-            System.out.println("Recipe does not exist.");
-            return null;
+            throw new RecipeNotFoundException(
+                    "Requested recipe not found. Recipe Name: %s; S3 Access Key: %s;", recipeName, s3AccessKey);
         }
-        return recipeCache.get(newAccessKey);
+        return recipeCache.get(s3AccessKey);
     }
 
 
